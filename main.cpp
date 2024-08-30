@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <stdexcept>
 
+//2024/8/24更新
 
 #define SAMPLE_FILENAME "Test.fbx"
 VMD vmd;
@@ -18,14 +19,13 @@ int main(int argc, char **argv) {
     const char* csvPath = argv[2];
     std::string n_str = argv[3];
     int n_int = stoi(n_str);
-    const char* newVMDPath = "result.vmd";
-    BoneList boneList = InputBoneData(csvPath);
+    BoneList boneList = inputBoneData(csvPath);
     printf("frameBoneList's size%d\n", boneList.frameBoneList.size());
 
     vmd.Read(vmdPath);
 
     VMD renamedVMD = vmd.BoneRename(vmd, boneList, n_int);
-    saveVMD(newVMDPath, renamedVMD);
+    saveVMD(PATH_OUTPUT, renamedVMD);
     printf("End");
 
     return 0;

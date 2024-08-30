@@ -6,16 +6,17 @@ void VMD::Read(const char *filePath) {
     if(fp == NULL) {
         printf("File cannot be opened\n");
     }
-    //VMDHeader vmdHeader;
 
+    //ヘッダー読み込み
     fread(&Header, sizeof(Header), 1, fp);
     fread(&BoneCount, sizeof(int), 1, fp);
 
-    //MotionFrames = new std::vector<VMDMotionFrame>(BoneCount);
     MotionFrames.resize(BoneCount);
     printf("bone count: %d\n", BoneCount);
     printf("Version: %s\n", Header.Version);
     printf("Model Name: %s\n", Header.ModelName);
+
+    //トランスフォームデータの読み込み。1フレーム1ボーンごとループ
     for (auto &motion: MotionFrames) {
         fread(&motion.BoneName[0], sizeof(char), BONE_NAME_SIZE, fp);
 
@@ -23,8 +24,9 @@ void VMD::Read(const char *filePath) {
         fread(&motion.Location, sizeof(motion.Location), 1, fp);
         fread(&motion.Rotation, sizeof(motion.Rotation), 1, fp);
         fread(&motion.Interpolation, sizeof(motion.Interpolation), 1, fp);
-        //PrintMotion(motion);//�?バッグ
     }
+
+    //モーフデータ読み込み
     fread(&MorphCount, sizeof(int), 1, fp);
     MorphFrames.resize(MorphCount);
     for (auto &morph: MorphFrames) {
@@ -33,14 +35,13 @@ void VMD::Read(const char *filePath) {
         fread(&morph.Weight, sizeof(morph.Weight), 1, fp);
     }
 
-
+    //カメラモーションデータの読み込み
     fread(&CameraCount, sizeof(int), 1, fp);
 
-    // ファイルのClose
     fclose(fp);
 }
 
-
+//リストに含まれてるか判定
 bool contains(std::vector<const char *> &listOfElements, const char *element) {
     for (const auto &item: listOfElements)
         if (std::string(item) == std::string(element))
@@ -57,45 +58,40 @@ std::vector<const char *> VMD::GetMorphList() {
     return morphList;
 }
 
-BoneList InputBoneData(const char *filePath) {
+BoneList inputBoneData(const char *filePath) {
     ifstream file(filePath);
-    //displayFileContents(filePath);//UTF-8で表示!!!
 
     string line, frameBoneName, newBoneName, frameBoneName_Jis, newBoneName_Jis;
     BoneList boneList;
     // Skip header row
     getline(file, line);
+
     // Read data rows
 
     int j = 0;
 
+    //read the csv file.
     while (getline(file, line)) {
-        //printf("DDD\n");
         stringstream ss(line);
         getline(ss, frameBoneName, ',');  // Read first column
 
-        boneList.restrictionList.emplace_back();
+        boneList.restrictionList.emplace_back();//initialize
+
 
         for (int i = 1; i < 4; i++) {
-            //printf("EEE\n");
-            getline(ss, line, ',');  // Skip columns 2-4
+            getline(ss, line, ',');  // scan restriction setting. (2nd-4th columns)
             if(line.empty()) {
-                //printf("aaa");
                 boneList.restrictionList[j].push_back(false);
-                //boneList.restrictionList[j][i] = false;
             } else {
-                //printf("bbb");
                 boneList.restrictionList[j].push_back(true);
-                //boneList.restrictionList[j][i] = true;
             }
-            //printf("ccc");
         }
 
         getline(ss, newBoneName, ',');  // Read fifth column
-        if (!frameBoneName.empty()) {
+        if (!frameBoneName.empty()) {//さっき読みこんだfirst columnのデータを配列に入れる
             boneList.frameBoneList.push_back(frameBoneName);//変換なしのpush_backUTF-8の文字列。
         }
-        if (!newBoneName.empty()) {
+        if (!newBoneName.empty()) {//さっき読みこんだfifth columnのデータを配列に入れる
             boneList.newBoneList.push_back(newBoneName);//変換なしのpush_back。UTF-8の文字列
         }
         j++;
@@ -105,6 +101,7 @@ BoneList InputBoneData(const char *filePath) {
     return boneList;
 }
 
+//search for the target in the nameList
 int found(string target, vector<string> nameList ) {
     for(int i = 0; i<nameList.size(); i++) {        
         if(trim(target) == trim(nameList[i])) {
@@ -125,19 +122,12 @@ VMD VMD::BoneRename(VMD vmd, BoneList boneList, int n) {
     int k = 0;
     string boneListTF_str;
     for(auto& keyFrame : vmd.MotionFrames) {
-        index = found(sjisToUtf8(keyFrame.BoneName), boneList.frameBoneList);
-        
-        //std::cout << "keyFrame->BoneName: " << sjisToUtf8(keyFrame.BoneName) << std::endl;
-        //表示用
 
-        //printf("index: %d\n", index);
-        //表示用
+        //ボーン名をボーン対応リストから検索
+        index = found(sjisToUtf8(keyFrame.BoneName), boneList.frameBoneList);
         
         //移動量をn倍
         if(index >= 0) {
-            //boneListTF_str = boneList.restrictionList[index][0];
-            //boneListTF_str = stoi(boneListTF_str);
-            //std::cout << "nboneList.restrictionList[index][0] : " << boneList.restrictionList[index][0] << std::endl;
             if(boneList.restrictionList[index][0]) {
                 for(k = 0; k<3; k++) {
                     keyFrame.Location[k] *= n;
@@ -147,16 +137,9 @@ VMD VMD::BoneRename(VMD vmd, BoneList boneList, int n) {
 
         if(index >= 0) {
             if(strcmp(boneList.newBoneList[index].c_str(), "-") != 0) {
-                //std::cout << "newBoneName : " << boneList.newBoneList[index] <<    std::endl;
-                //表示用
-                //std::cout << "BoneName1 : " << sjisToUtf8(keyFrame.BoneName) << std::endl;
-                //表示用
-
                 string newBoneJis = utf8ToJis(boneList.newBoneList[index]);
                 for(int j = 0; j< BONE_NAME_SIZE-1;j++) {
                     keyFrame.BoneName[j] = newBoneJis[j];
-                    //std::cout << "newBoneJis[j] : " << sjisToUtf8(newBoneJis) << std::endl;
-                    //表示用
                 }
             }
         }
@@ -166,41 +149,36 @@ VMD VMD::BoneRename(VMD vmd, BoneList boneList, int n) {
 }
 
 void saveVMD(const char* filePath, VMD vmd) {
-    // VMDファイルを書き込みモードで開く
+    // VMDファイルをバイナリモードで開く
     std::ofstream ofs(filePath, std::ios::binary);
     // VMDHeaderを書き込む
     ofs.write(reinterpret_cast<const char*>(&vmd.Header), sizeof(vmd.Header));
 
-    // ボ�?�ンモーションフレー�?数を書き込む
+    // ボーンモーションフレーム数を書き込む
     int boneCount = vmd.MotionFrames.size();
     ofs.write(reinterpret_cast<const char*>(&boneCount), sizeof(int));
     
-    // ボ�?�ンモーションフレー�?を書き込む
+    // ボーンモーションフレームを書き込む
     for (const auto& frame : vmd.MotionFrames) {
 
         ofs.write(reinterpret_cast<const char*>(&frame.BoneName), BONE_NAME_SIZE);
-        //writeShiftJIS(ofs, frame.BoneName);
         ofs.write(reinterpret_cast<const char*>(&frame.FrameNo), sizeof(DWORD));
         ofs.write(reinterpret_cast<const char*>(&frame.Location), sizeof(frame.Location));
         ofs.write(reinterpret_cast<const char*>(&frame.Rotation), sizeof(frame.Rotation));
         ofs.write(reinterpret_cast<const char*>(&frame.Interpolation), sizeof(frame.Interpolation));
 
-    //float Location[3];
-    //float Rotation[4];
-    //BYTE Interpolation[64];
-        //ofs.write(reinterpret_cast<const char*>(&frame), sizeof(frame));
     }
 
-    // 表�?モーションフレー�?数を書き込む
+    // 表情モーションフレーム数を書き込む
     int morphCount = vmd.MorphFrames.size();
     ofs.write(reinterpret_cast<const char*>(&morphCount), sizeof(int));
 
-    // 表�?モーションフレー�?を書き込む
+    // 表情モーションフレームを書き込む
     for (const auto& frame : vmd.MorphFrames) {
         ofs.write(reinterpret_cast<const char*>(&frame), sizeof(frame));
     }
 
-    // カメラモーションフレー�?数を書き込む
+    // カメラモーションフレーム数を書き込む
     int cameraCount = vmd.CameraCount;
     ofs.write(reinterpret_cast<const char*>(&cameraCount), sizeof(int));
 
@@ -209,22 +187,7 @@ void saveVMD(const char* filePath, VMD vmd) {
 }
 
 
-void PrintMotion(const VMDMotionFrame& motion) {
-    //shift-JISの�?字�?�をUTF-8に変換してボ�?�ンの名前を表示する
-        
-    std::wstring utf16str = jisToUTF(motion.BoneName);
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::string utf8str = converter.to_bytes(utf16str);
-
-    std::cout << "BoneName: " << utf8str << std::endl;
-    std::cout << "FrameNo: " << motion.FrameNo << std::endl;
-    std::cout << "Location: (" << motion.Location[0] << ", " << motion.Location[1] << ", " << motion.Location[2] << ")" << std::endl;
-    std::cout << "Rotation: (" << motion.Rotation[0] << ", " << motion.Rotation[1] << ", " << motion.Rotation[2] << ", " << motion.Rotation[3] << ")" << std::endl;
-    std::cout << "Interpolation: (" << motion.Interpolation[0] << ", " << motion.Interpolation[1] << ", " << motion.Interpolation[2] << ", " << motion.Interpolation[3] << ")" << std::endl;
-}
-
-
-//「\0」を除去する関数。trim関数で用いる。
+//「\0」を除去する関数。
 void removeNullChar(char* str) {
     int len = strlen(str);
     if (len > 0 && str[len-1] == '\0') {
@@ -236,7 +199,7 @@ void removeNullChar(char* str) {
 string trim(string str) {
     char* cstr = new char[str.size() + 1];
     strcpy(cstr, str.c_str());
-    removeNullChar(cstr); // 最後に「\0」があれば除去する
+    //removeNullChar(cstr); // 最後に「\0」があれば除去する
     char* head = cstr;
     char* tail = cstr + strlen(cstr) - 1;
     while (*head == ' ' || *head == '\t' || *head == '\n' || *head == '\r') {
@@ -251,8 +214,9 @@ string trim(string str) {
     return result;
 }
 
-//Shift-JISからUTF-8への変換（旧）
 
+
+//Shift-JISからUTF-8への変換
 std::wstring jisToUTF(const std::string& str) {
     int wsize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, NULL, 0);
     std::wstring wstr(wsize, 0);
@@ -260,7 +224,8 @@ std::wstring jisToUTF(const std::string& str) {
     return wstr;
 }
 
-//↓Shift-JISからUTF-8への変換（新）
+
+//Shift-JISからUTF-8への変換（新）
 std::string sjisToUtf8(const std::string& str) {
     // Shift-JISからUTF-16に変換
     int wsize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, NULL, 0);
@@ -274,6 +239,7 @@ std::string sjisToUtf8(const std::string& str) {
 
     return result;
 }
+
 
 std::string utf8ToJis(const std::string& utf8_str)
 {
@@ -290,77 +256,23 @@ std::string utf8ToJis(const std::string& utf8_str)
     return buffer;
 }
 
-void overwriteSJIS(char sjisStr[BONE_NAME_SIZE], std::string utf8Str) {
-    // UTF-8からShift-JISへの変換器を用意する
-    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> cv;
-    std::wstring utf16Str = cv.from_bytes(utf8Str); // UTF-8をUTF-16に変換する
 
-    // UTF-16からShift-JISへの変換器を用意する
-    int sjisLen = MultiByteToWideChar(CP_ACP, 0, sjisStr, -1, NULL, 0); // Shift-JIS文字列のバイト数を取得する
-    wchar_t* sjisWStr = new wchar_t[sjisLen];
-    MultiByteToWideChar(CP_ACP, 0, sjisStr, -1, sjisWStr, sjisLen); // Shift-JISをUTF-16に変換する
-    char* newSJIS = new char[16];
-    WideCharToMultiByte(CP_ACP, 0, utf16Str.c_str(), -1, newSJIS, 16, NULL, NULL); // UTF-16をShift-JISに変換する
 
-    // 上書きする
-    std::memcpy(sjisStr, newSJIS, 16);
-    delete[] sjisWStr;
-    delete[] newSJIS;
+//＝＝＝＝＝＝＝＝以下デバッグ用情報表示＝＝＝＝＝＝＝＝
+
+
+void printMotion(const VMDMotionFrame& motion) {
+    //shift-JISの文字列をUTF-8に変換してボーンの名前を表示する
+        
+    std::wstring utf16str = jisToUTF(motion.BoneName);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::string utf8str = converter.to_bytes(utf16str);
+
+    std::cout << "BoneName: " << utf8str << std::endl;
+    std::cout << "FrameNo: " << motion.FrameNo << std::endl;
+    std::cout << "Location: (" << motion.Location[0] << ", " << motion.Location[1] << ", " << motion.Location[2] << ")" << std::endl;
+    std::cout << "Rotation: (" << motion.Rotation[0] << ", " << motion.Rotation[1] << ", " << motion.Rotation[2] << ", " << motion.Rotation[3] << ")" << std::endl;
+    std::cout << "Interpolation: (" << motion.Interpolation[0] << ", " << motion.Interpolation[1] << ", " << motion.Interpolation[2] << ", " << motion.Interpolation[3] << ")" << std::endl;
 }
 
-void displayFileContents(const char* filePath) {
-    ifstream file(filePath);
-    if (!file.is_open()) {
-        cout << "Failed to open file: " << filePath << endl;
-        return;
-    }
-    string line;
-    while (getline(file, line)) {
-       cout << line << endl;
-    }
-    file.close();
-}
 
-void alignData(char* data, size_t dataSize, size_t alignment) {
-    // アライメントに必要なパディングサイズを計算する
-    size_t paddingSize = alignment - (dataSize % alignment);
-    // データのサイズにパディングサイズを加えたサイズのメモリを確保する
-    char* alignedData = new char[dataSize + paddingSize];
-    // パディングサイズ分の空白を埋める
-    std::memset(alignedData + dataSize, 0, paddingSize);
-    // データをコピーする
-    std::memcpy(alignedData, data, dataSize);
-    // 元のデータを削除する
-    delete[] data;
-    // アライメントを調整したデータにポインタを変更する
-    data = alignedData;
-}
-
-void printStringWithControlCharacters(const std::string& str) {
-    for (char c : str) {
-        if (c == '\n') {
-            std::cout << "\\n";
-        } else if (c == '\r') {
-            std::cout << "\\r";
-        } else if (c == '\t') {
-            std::cout << "\\t";
-        } else if (c == '\0') {
-            std::cout << "\\0";
-        } else {
-            std::cout << c;
-        }
-    }
-}
-
-void writeShiftJIS(std::ostream& os, const std::string& str) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> conv;
-    std::wstring wideStr = conv.from_bytes(str);
-    std::locale loc("ja_JP.SJIS");
-    const std::codecvt<wchar_t, char, std::mbstate_t>& codec = std::use_facet<std::codecvt<wchar_t, char, std::mbstate_t>>(loc);
-    std::vector<char> buffer(wideStr.length() * codec.max_length());
-    std::mbstate_t state = std::mbstate_t();
-    const wchar_t* fromNext;
-    char* toNext;
-    codec.out(state, wideStr.data(), wideStr.data() + wideStr.length(), fromNext, buffer.data(), buffer.data() + buffer.size(), toNext);
-    os.write(buffer.data(), toNext - buffer.data());
-}
