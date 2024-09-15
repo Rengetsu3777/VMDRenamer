@@ -4,7 +4,7 @@ void VMD::Read(const char *filePath) {
     // ファイルのOpen
     auto fp = fopen(filePath, "rb");
     if(fp == NULL) {
-        printf("File cannot be opened\n");
+        printf("vmd File cannot be opened\n");
     }
 
     //ヘッダー読み込み
@@ -42,7 +42,7 @@ void VMD::Read(const char *filePath) {
 }
 
 //リストに含まれてるか判定
-bool contains(std::vector<const char *> &listOfElements, const char *element) {
+bool isContains(std::vector<const char *> &listOfElements, const char *element) {
     for (const auto &item: listOfElements)
         if (std::string(item) == std::string(element))
             return true;
@@ -53,11 +53,12 @@ bool contains(std::vector<const char *> &listOfElements, const char *element) {
 std::vector<const char *> VMD::GetMorphList() {
     std::vector<const char *> morphList;
     for (auto &morph: MorphFrames)
-        if (!contains(morphList, morph.SkinName))
+        if (!isContains(morphList, morph.SkinName))
             morphList.push_back(morph.SkinName);
     return morphList;
 }
 
+//read csv file
 BoneList inputBoneData(const char *filePath) {
     ifstream file(filePath);
 
@@ -88,11 +89,21 @@ BoneList inputBoneData(const char *filePath) {
         }
 
         getline(ss, newBoneName, ',');  // Read fifth column
+
         if (!frameBoneName.empty()) {//さっき読みこんだfirst columnのデータを配列に入れる
             boneList.frameBoneList.push_back(frameBoneName);//変換なしのpush_backUTF-8の文字列。
+        } else {
+            cout << "Error: Invalid Bone Name in the csv file! (column 1 line " << j+2 << ")" << endl;
+            cout << " エラー：入力ボーン名が不正です！ ( " << j+2 << "行1列目)" << endl;
+            exit(0);
         }
+
         if (!newBoneName.empty()) {//さっき読みこんだfifth columnのデータを配列に入れる
             boneList.newBoneList.push_back(newBoneName);//変換なしのpush_back。UTF-8の文字列
+        } else {
+            cout << "Error: Invalid New Bone Name (column 5, line " << j+2 << ")" << endl;
+            cout << "エラー：入力新ボーン名が不正です！ ( " << j+2 << "行5列目)" << endl;
+            exit(0);
         }
         j++;
     }
@@ -133,9 +144,8 @@ VMD VMD::BoneRename(VMD vmd, BoneList boneList, int n) {
                     keyFrame.Location[k] *= n;
                 }
             }
-        }
 
-        if(index >= 0) {
+            //
             if(strcmp(boneList.newBoneList[index].c_str(), "-") != 0) {
                 string newBoneJis = utf8ToJis(boneList.newBoneList[index]);
                 for(int j = 0; j< BONE_NAME_SIZE-1;j++) {

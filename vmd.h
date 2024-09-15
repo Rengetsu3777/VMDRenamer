@@ -80,7 +80,7 @@ public:
 
     void Read(const char* filePath);
     std::vector<const char*> GetMorphList();
-    VMD BoneRename(VMD vmd, BoneList boneList, int n);
+    VMD BoneRename(VMD vmd, BoneList boneList, const int n);
 };
 
 void printMotion(const VMDMotionFrame& motion);

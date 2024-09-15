@@ -18,9 +18,10 @@ int main(int argc, char **argv) {
     const char* vmdPath = argv[1];
     const char* csvPath = argv[2];
     std::string n_str = argv[3];
-    int n_int = stoi(n_str);
+    const int n_int = stoi(n_str);
     BoneList boneList = inputBoneData(csvPath);
-    printf("frameBoneList's size%d\n", boneList.frameBoneList.size());
+    
+    printf("Bone Number in csv file: %d\n", boneList.frameBoneList.size());
 
     vmd.Read(vmdPath);
 
