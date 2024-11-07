@@ -23,23 +23,31 @@ using namespace std;
 #define BONE_NAME_SIZE 15 //MMDではボーン名は15バイトまで
 #define PATH_OUTPUT "result.vmd"
 
+// *************  命名規則  *****************
+//変数：先頭小文字 ＋ 単語先頭大文字
+//メソッド：先頭小文字 ＋ 単語先頭大文字
+//クラス、構造体名： 先頭大文字 ＋ 単語先頭大文字
+//メンバ変数：変数と同様
+//メンバ関数：先頭大文字 ＋ 単語先頭大文字
+// *****************************************
+
 struct VMDHeader{
-    char Version[30];
-    char ModelName[20];
+    char version[30];
+    char modelName[20];
 };
 
 //モーションの1ボーン・1フレームあたりのデータ
 struct VMDMotionFrame{
-    char BoneName[BONE_NAME_SIZE];
-    DWORD FrameNo;
-    float Location[3];
-    float Rotation[4];
-    BYTE Interpolation[64];
+    char boneName[BONE_NAME_SIZE];
+    DWORD frameNo;
+    float location[3];
+    float rotation[4];
+    BYTE interpolation[64];
 };
 
 //トランスフォーム制限の定義
 struct Restriction {
-    bool Movement;//in csv file, No symbol means restricted, "1" means free
+    bool movement;//in csv file, No symbol means restricted, "1" means free
     bool rotation;
     bool scale;
 };
@@ -54,29 +62,29 @@ struct BoneList {
 
 // 表情データ数
 struct VMDMorphHeader {
-    unsigned long Count; // 表情データ数
+    unsigned long count; // 表情データ数
 } ;
 
 struct VMDMorphFrame {
-    char SkinName[16]; // 表情名
-    unsigned long FrameNo; // フレーム番号
-    float Weight; // 表情の設定値(表情スライダーの値)
+    char skinName[16]; // 表情名
+    unsigned long frameNo; // フレーム番号
+    float weight; // 表情の設定値(表情スライダーの値)
 };
 
 // カメラデータ数
 struct VMD_CAMERA_COUNT {
-    unsigned long Count; // カメラデータ数
+    unsigned long count; // カメラデータ数
 } ;
 
 
 class VMD{
 public:
-    int BoneCount;
-    int MorphCount;
-    int CameraCount;
-    VMDHeader Header;
-    std::vector<VMDMotionFrame> MotionFrames;
-    std::vector<VMDMorphFrame> MorphFrames;
+    int boneCount;
+    int morphCount;
+    int cameraCount;
+    VMDHeader header;
+    std::vector<VMDMotionFrame> motionFrames;
+    std::vector<VMDMorphFrame> morphFrames;
 
     void Read(const char* filePath);
     std::vector<const char*> GetMorphList();

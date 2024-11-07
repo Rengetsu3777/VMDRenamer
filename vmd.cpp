@@ -8,35 +8,35 @@ void VMD::Read(const char *filePath) {
     }
 
     //ヘッダー読み込み
-    fread(&Header, sizeof(Header), 1, fp);
-    fread(&BoneCount, sizeof(int), 1, fp);
+    fread(&header, sizeof(header), 1, fp);
+    fread(&boneCount, sizeof(int), 1, fp);
 
-    MotionFrames.resize(BoneCount);
-    printf("bone count: %d\n", BoneCount);
-    printf("Version: %s\n", Header.Version);
-    printf("Model Name: %s\n", Header.ModelName);
+    motionFrames.resize(boneCount);
+    printf("bone count: %d\n", boneCount);
+    printf("Version: %s\n", header.version);
+    printf("Model Name: %s\n", header.modelName);
 
     //トランスフォームデータの読み込み。1フレーム1ボーンごとループ
-    for (auto &motion: MotionFrames) {
-        fread(&motion.BoneName[0], sizeof(char), BONE_NAME_SIZE, fp);
+    for (auto &motion: motionFrames) {
+        fread(&motion.boneName[0], sizeof(char), BONE_NAME_SIZE, fp);
 
-        fread(&motion.FrameNo, sizeof(motion.FrameNo), 1, fp);
-        fread(&motion.Location, sizeof(motion.Location), 1, fp);
-        fread(&motion.Rotation, sizeof(motion.Rotation), 1, fp);
-        fread(&motion.Interpolation, sizeof(motion.Interpolation), 1, fp);
+        fread(&motion.frameNo, sizeof(motion.frameNo), 1, fp);
+        fread(&motion.location, sizeof(motion.location), 1, fp);
+        fread(&motion.rotation, sizeof(motion.rotation), 1, fp);
+        fread(&motion.interpolation, sizeof(motion.interpolation), 1, fp);
     }
 
     //モーフデータ読み込み
-    fread(&MorphCount, sizeof(int), 1, fp);
-    MorphFrames.resize(MorphCount);
-    for (auto &morph: MorphFrames) {
-        fread(&morph.SkinName, sizeof(morph.SkinName), 1, fp);
-        fread(&morph.FrameNo, sizeof(morph.FrameNo), 1, fp);
-        fread(&morph.Weight, sizeof(morph.Weight), 1, fp);
+    fread(&morphCount, sizeof(int), 1, fp);
+    morphFrames.resize(morphCount);
+    for (auto &morph: morphFrames) {
+        fread(&morph.skinName, sizeof(morph.skinName), 1, fp);
+        fread(&morph.frameNo, sizeof(morph.frameNo), 1, fp);
+        fread(&morph.weight, sizeof(morph.weight), 1, fp);
     }
 
     //カメラモーションデータの読み込み
-    fread(&CameraCount, sizeof(int), 1, fp);
+    fread(&cameraCount, sizeof(int), 1, fp);
 
     fclose(fp);
 }
@@ -52,9 +52,9 @@ bool isContains(std::vector<const char *> &listOfElements, const char *element) 
 
 std::vector<const char *> VMD::GetMorphList() {
     std::vector<const char *> morphList;
-    for (auto &morph: MorphFrames)
-        if (!isContains(morphList, morph.SkinName))
-            morphList.push_back(morph.SkinName);
+    for (auto &morph: morphFrames)
+        if (!isContains(morphList, morph.skinName))
+            morphList.push_back(morph.skinName);
     return morphList;
 }
 
@@ -132,16 +132,16 @@ VMD VMD::BoneRename(VMD vmd, BoneList boneList, int n) {
     int i = 0;
     int k = 0;
     string boneListTF_str;
-    for(auto& keyFrame : vmd.MotionFrames) {
+    for(auto& keyFrame : vmd.motionFrames) {
 
         //ボーン名をボーン対応リストから検索
-        index = found(sjisToUtf8(keyFrame.BoneName), boneList.frameBoneList);
+        index = found(sjisToUtf8(keyFrame.boneName), boneList.frameBoneList);
         
         //移動量をn倍
         if(index >= 0) {
             if(boneList.restrictionList[index][0]) {
                 for(k = 0; k<3; k++) {
-                    keyFrame.Location[k] *= n;
+                    keyFrame.location[k] *= n;
                 }
             }
 
@@ -149,7 +149,7 @@ VMD VMD::BoneRename(VMD vmd, BoneList boneList, int n) {
             if(strcmp(boneList.newBoneList[index].c_str(), "-") != 0) {
                 string newBoneJis = utf8ToJis(boneList.newBoneList[index]);
                 for(int j = 0; j< BONE_NAME_SIZE-1;j++) {
-                    keyFrame.BoneName[j] = newBoneJis[j];
+                    keyFrame.boneName[j] = newBoneJis[j];
                 }
             }
         }
@@ -162,34 +162,34 @@ void saveVMD(const char* filePath, VMD vmd) {
     // VMDファイルをバイナリモードで開く
     std::ofstream ofs(filePath, std::ios::binary);
     // VMDHeaderを書き込む
-    ofs.write(reinterpret_cast<const char*>(&vmd.Header), sizeof(vmd.Header));
+    ofs.write(reinterpret_cast<const char*>(&vmd.header), sizeof(vmd.header));
 
     // ボーンモーションフレーム数を書き込む
-    int boneCount = vmd.MotionFrames.size();
+    int boneCount = vmd.motionFrames.size();
     ofs.write(reinterpret_cast<const char*>(&boneCount), sizeof(int));
     
     // ボーンモーションフレームを書き込む
-    for (const auto& frame : vmd.MotionFrames) {
+    for (const auto& frame : vmd.motionFrames) {
 
-        ofs.write(reinterpret_cast<const char*>(&frame.BoneName), BONE_NAME_SIZE);
-        ofs.write(reinterpret_cast<const char*>(&frame.FrameNo), sizeof(DWORD));
-        ofs.write(reinterpret_cast<const char*>(&frame.Location), sizeof(frame.Location));
-        ofs.write(reinterpret_cast<const char*>(&frame.Rotation), sizeof(frame.Rotation));
-        ofs.write(reinterpret_cast<const char*>(&frame.Interpolation), sizeof(frame.Interpolation));
+        ofs.write(reinterpret_cast<const char*>(&frame.boneName), BONE_NAME_SIZE);
+        ofs.write(reinterpret_cast<const char*>(&frame.frameNo), sizeof(DWORD));
+        ofs.write(reinterpret_cast<const char*>(&frame.location), sizeof(frame.location));
+        ofs.write(reinterpret_cast<const char*>(&frame.rotation), sizeof(frame.rotation));
+        ofs.write(reinterpret_cast<const char*>(&frame.interpolation), sizeof(frame.interpolation));
 
     }
 
     // 表情モーションフレーム数を書き込む
-    int morphCount = vmd.MorphFrames.size();
+    int morphCount = vmd.morphFrames.size();
     ofs.write(reinterpret_cast<const char*>(&morphCount), sizeof(int));
 
     // 表情モーションフレームを書き込む
-    for (const auto& frame : vmd.MorphFrames) {
+    for (const auto& frame : vmd.morphFrames) {
         ofs.write(reinterpret_cast<const char*>(&frame), sizeof(frame));
     }
 
     // カメラモーションフレーム数を書き込む
-    int cameraCount = vmd.CameraCount;
+    int cameraCount = vmd.cameraCount;
     ofs.write(reinterpret_cast<const char*>(&cameraCount), sizeof(int));
 
     // ファイルを閉じる
@@ -274,15 +274,15 @@ std::string utf8ToJis(const std::string& utf8_str)
 void printMotion(const VMDMotionFrame& motion) {
     //shift-JISの文字列をUTF-8に変換してボーンの名前を表示する
         
-    std::wstring utf16str = jisToUTF(motion.BoneName);
+    std::wstring utf16str = jisToUTF(motion.boneName);
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::string utf8str = converter.to_bytes(utf16str);
 
     std::cout << "BoneName: " << utf8str << std::endl;
-    std::cout << "FrameNo: " << motion.FrameNo << std::endl;
-    std::cout << "Location: (" << motion.Location[0] << ", " << motion.Location[1] << ", " << motion.Location[2] << ")" << std::endl;
-    std::cout << "Rotation: (" << motion.Rotation[0] << ", " << motion.Rotation[1] << ", " << motion.Rotation[2] << ", " << motion.Rotation[3] << ")" << std::endl;
-    std::cout << "Interpolation: (" << motion.Interpolation[0] << ", " << motion.Interpolation[1] << ", " << motion.Interpolation[2] << ", " << motion.Interpolation[3] << ")" << std::endl;
+    std::cout << "FrameNo: " << motion.frameNo << std::endl;
+    std::cout << "Location: (" << motion.location[0] << ", " << motion.location[1] << ", " << motion.location[2] << ")" << std::endl;
+    std::cout << "Rotation: (" << motion.rotation[0] << ", " << motion.rotation[1] << ", " << motion.rotation[2] << ", " << motion.rotation[3] << ")" << std::endl;
+    std::cout << "Interpolation: (" << motion.interpolation[0] << ", " << motion.interpolation[1] << ", " << motion.interpolation[2] << ", " << motion.interpolation[3] << ")" << std::endl;
 }
 
 
